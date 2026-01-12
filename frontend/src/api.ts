@@ -1,8 +1,8 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
 
 export const api = {
-  get: async (path: string) => {
-    const res = await fetch(`${API_BASE}${path}`);
+  get: async (path: string, options: RequestInit = {}) => {
+    const res = await fetch(`${API_BASE}${path}`, options);
     return res.json();
   },
   post: async (path: string, body: any, headers: any = {}) => {

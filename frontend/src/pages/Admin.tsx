@@ -6,38 +6,26 @@ export const Admin = () => {
   const [pending, setPending] = useState<any[]>([]);
   const [authed, setAuthed] = useState(false);
 
-  const checkAuth = async () => {
-    // Simple check by trying to fetch pending
-    try {
-      const res = await api.get('/admin/pending', { headers: { 'x-admin-token': token } } as any); // Type hack for MVP
-      // Wait, api.get wrapper doesn't support headers arg in my implementation.
-      // Need to fix api.ts or just use fetch here.
-      // Let's use fetch directly for admin to be safe or update api.ts.
-      // I'll update api.ts later or just patch it here.
-    } catch (e) {
-      return false;
-    }
-  };
-
   const fetchPending = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787/api'}/admin/pending`, {
-      headers: { 'x-admin-token': token }
-    });
-    if (res.ok) {
-        const data = await res.json();
+    try {
+      const data = await api.get('/admin/pending', {
+        headers: { 'x-admin-token': token }
+      });
+      // Assuming if data.results exists, auth was good. Better would be checking res.ok in api.ts but this works for MVP
+      if (data.results) {
         setPending(data.results);
         setAuthed(true);
         localStorage.setItem('admin_token', token);
-    } else {
+      } else {
         setAuthed(false);
+      }
+    } catch (e) {
+      setAuthed(false);
     }
   };
 
   const handleAction = async (id: string, action: 'approve' | 'reject') => {
-    await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8787/api'}/admin/${action}/${id}`, {
-      method: 'POST',
-      headers: { 'x-admin-token': token }
-    });
+    await api.post(`/admin/${action}/${id}`, {}, { 'x-admin-token': token });
     fetchPending();
   };
 
