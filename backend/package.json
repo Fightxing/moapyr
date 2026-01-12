@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.966.0",
+    "@aws-sdk/s3-request-presigner": "^3.966.0",
+    "hono": "^4.11.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260111.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.58.0"
+  }
+}
