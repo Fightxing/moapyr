@@ -5,6 +5,9 @@ import { Bindings } from '../types'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
+// Helper to detect local environment
+const isLocal = (env: Bindings) => env.R2_ACCOUNT_ID === 'local_dev'
+
 const getS3Client = (env: Bindings) => {
   return new S3Client({
     region: 'auto',
@@ -15,6 +18,30 @@ const getS3Client = (env: Bindings) => {
     },
   })
 }
+
+// --- LOCAL DEV HELPERS ---
+// This route mimics the S3 bucket behavior for local development
+app.all('/local-bucket/:key', async (c) => {
+  if (!isLocal(c.env)) {
+    return c.json({ error: 'Only available in local dev mode' }, 403)
+  }
+  const key = c.req.param('key')
+
+  if (c.req.method === 'PUT') {
+    const body = await c.req.arrayBuffer()
+    await c.env.BUCKET.put(key, body)
+    return c.newResponse(null, 200)
+  }
+
+  if (c.req.method === 'GET') {
+    const object = await c.env.BUCKET.get(key)
+    if (!object) return c.newResponse(null, 404)
+    return c.newResponse(object.body, 200)
+  }
+
+  return c.newResponse(null, 405)
+})
+// -------------------------
 
 // Search / List Resources
 app.get('/', async (c) => {
@@ -63,25 +90,26 @@ app.post('/init-upload', async (c) => {
 
   const id = crypto.randomUUID()
   const fileKey = `${id}-${fileName}`
-  const s3 = getS3Client(c.env)
   
-  // Generate Presigned URL for PUT
-  const command = new PutObjectCommand({
-    Bucket: 'moapyr-files', // This name should match your R2 bucket name in dashboard, or use env var
-    Key: fileKey,
-    ContentType: 'application/octet-stream', // Or guess from fileName
-    ContentLength: fileSize
-  })
-  
-  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
+  let uploadUrl: string;
 
-  // Insert into DB as 'pending' (waiting for file)
-  // Actually, we'll use a specific status like 'uploading' or just 'pending' but require a finalize step.
-  // We'll use 'uploading' for now, or just 'pending' and check file existence later.
-  // Let's stick to 'pending' as defined in schema, meaning "Pending Admin Review".
-  // But strictly, we shouldn't show it to admin until upload is done.
-  // Let's add a `finalized` boolean or just assume if it's in DB it's initialized.
-  
+  if (isLocal(c.env)) {
+    // Local Dev: Return URL to our local proxy
+    const url = new URL(c.req.url)
+    uploadUrl = `${url.origin}/api/resources/local-bucket/${fileKey}`
+  } else {
+    // Production: Generate S3 Presigned URL
+    const s3 = getS3Client(c.env)
+    const command = new PutObjectCommand({
+      Bucket: 'moapyr-files', 
+      Key: fileKey,
+      ContentType: 'application/octet-stream',
+      ContentLength: fileSize
+    })
+    uploadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
+  }
+
+  // Insert into DB as 'pending'
   await c.env.DB.prepare(
     `INSERT INTO resources (id, title, description, tags, uploader_ip, file_key, file_name, file_size, status) 
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_upload')`
@@ -98,12 +126,14 @@ app.post('/finalize-upload', async (c) => {
   const resource = await c.env.DB.prepare('SELECT * FROM resources WHERE id = ?').bind(id).first()
   if (!resource) return c.json({ error: 'Not found' }, 404)
 
-  // Verify file exists in R2 (Optional but recommended)
-  // For MVP, we trust the client or check headObject
+  // Verify file exists (Optional)
   try {
-    const s3 = getS3Client(c.env)
-    // HEAD request to check object existence would go here
-    // await s3.send(new HeadObjectCommand({ Bucket: 'moapyr-files', Key: resource.file_key as string }))
+    if (isLocal(c.env)) {
+      const obj = await c.env.BUCKET.head(resource.file_key as string)
+      if (!obj) throw new Error('File missing locally')
+    } else {
+       // Production check skipped for MVP or implement HeadObjectCommand
+    }
   } catch (e) {
     // If file is missing, fail?
   }
@@ -125,14 +155,20 @@ app.get('/:id/download', async (c) => {
   await c.env.DB.prepare('UPDATE resources SET downloads = downloads + 1 WHERE id = ?').bind(id).run()
   await c.env.DB.prepare('INSERT INTO analytics (resource_id, event_type) VALUES (?, ?)').bind(id, 'download').run()
 
-  // Generate Presigned GET URL
-  const s3 = getS3Client(c.env)
-  const command = new GetObjectCommand({
-    Bucket: 'moapyr-files',
-    Key: resource.file_key
-  })
-  
-  const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
+  let downloadUrl: string;
+
+  if (isLocal(c.env)) {
+    const url = new URL(c.req.url)
+    downloadUrl = `${url.origin}/api/resources/local-bucket/${resource.file_key}`
+  } else {
+    // Generate Presigned GET URL
+    const s3 = getS3Client(c.env)
+    const command = new GetObjectCommand({
+      Bucket: 'moapyr-files',
+      Key: resource.file_key
+    })
+    downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
+  }
   
   return c.json({ downloadUrl })
 })
