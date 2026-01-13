@@ -24,3 +24,11 @@ CREATE TABLE analytics (
   event_type TEXT, -- download, view
   timestamp INTEGER DEFAULT (strftime('%s', 'now'))
 );
+
+DROP TABLE IF EXISTS admins;
+CREATE TABLE admins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL UNIQUE,
+  totp_secret TEXT NOT NULL, -- Base32 encoded secret
+  created_at INTEGER DEFAULT (strftime('%s', 'now'))
+);

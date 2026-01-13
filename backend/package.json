@@ -12,7 +12,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.966.0",
     "@aws-sdk/s3-request-presigner": "^3.966.0",
-    "hono": "^4.11.3"
+    "hono": "^4.11.3",
+    "otpauth": "^9.4.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260111.0",
