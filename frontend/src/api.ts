@@ -1,6 +1,8 @@
 // Helper to ensure URL has protocol
 const ensureProtocol = (url: string) => {
   if (!url) return '';
+  // Allow relative paths
+  if (url.startsWith('/')) return url;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `https://${url}`;
 };
@@ -10,7 +12,7 @@ console.log('Configured VITE_API_URL:', import.meta.env.VITE_API_URL);
 
 const API_BASE = import.meta.env.VITE_API_URL 
   ? ensureProtocol(import.meta.env.VITE_API_URL) 
-  : 'http://localhost:8787/api';
+  : '/api'; // Default to relative path in production if not specified (local dev usually overrides this via .env)
 
 console.log('Active API_BASE:', API_BASE);
 
