@@ -1,4 +1,18 @@
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8787/api';
+// Helper to ensure URL has protocol
+const ensureProtocol = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `https://${url}`;
+};
+
+// Log for debugging
+console.log('Configured VITE_API_URL:', import.meta.env.VITE_API_URL);
+
+const API_BASE = import.meta.env.VITE_API_URL 
+  ? ensureProtocol(import.meta.env.VITE_API_URL) 
+  : 'http://localhost:8787/api';
+
+console.log('Active API_BASE:', API_BASE);
 
 export const api = {
   get: async (path: string, options: RequestInit = {}) => {
