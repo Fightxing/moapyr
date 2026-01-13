@@ -6,7 +6,13 @@ import admin from './routes/admin'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-app.use('/*', cors())
+app.use('/*', cors({
+  origin: '*',
+  allowHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
+  allowMethods: ['POST', 'GET', 'OPTIONS', 'PUT', 'DELETE'],
+  exposeHeaders: ['Content-Length'],
+  maxAge: 600,
+}))
 
 app.get('/', (c) => {
   return c.text('MOAPYR API is running')
