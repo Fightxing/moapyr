@@ -4,10 +4,10 @@ compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
-binding = "moapyr_db"
+binding = "DB"
 database_name = "moapyr-db"
 database_id = "4908f763-feac-4790-a3ed-d2825cf3b192"
 
 [[r2_buckets]]
-binding = "moapyr-files"
+binding = "BUCKET"
 bucket_name = "moapyr-files"
